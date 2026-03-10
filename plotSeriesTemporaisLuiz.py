@@ -39,7 +39,7 @@ TABLES = {
     "axys_qualified_qartod": {"schema": "qualified_data", "table": "axys_qualified_qartod", "time": "date_time", "id_col": "buoy_id"},
     "criosfera_qualified_qartod": {"schema": "qualified_data", "table": "criosfera_qualified_qartod", "time": "date_time", "id_col": "buoy_id"},
     "sailbuoy_merged_qualified": {"schema": "sailbuoy", "table": "merged_qualified", "time": "sailbuoy_time", "id_col": "sailbuoy_unit"},
-    "axys_260_general": {"schema": "moored", "table": "axys_260_general", "time": "date_time", "id_col": "buoy_id"},
+    "axys_260_general": {"schema": "moored", "table": "axys_260_general", "time": "date_time", "id_col": "buoy_id"}, 
 
 }
 
