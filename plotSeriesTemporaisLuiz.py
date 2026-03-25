@@ -17,7 +17,7 @@ import xml.etree.ElementTree as ET
 st.set_page_config(page_title="Ocean Multi-Table Explorer", layout="wide")
 load_dotenv()
 
-ULTIMOS_DIAS_PADRAO = 3   # 👈 AQUI você muda se quiser (ex: 5 dias)
+ULTIMOS_DIAS_PADRAO = 430   # 👈 AQUI você muda se quiser (ex: 5 dias)
 
 # ======================
 # METADADOS DAS TABELAS
@@ -725,10 +725,9 @@ if carregar:
         labels.append(t)
 
     # ======================
-    # 4) RENDER (fora do loop!)
+    # 4) RENDER
     # ======================
     if dfs:
-
         st.markdown("### 📊 Painel rápido")
         for df, tcol, vars_, label in zip(dfs, time_cols, var_lists, labels):
             with st.expander(f"📌 {label}", expanded=True):
@@ -739,5 +738,40 @@ if carregar:
         fig = plot_series_multi(dfs, time_cols, var_lists, labels, mode)
         st.plotly_chart(fig, use_container_width=True)
 
+        # --- NOVO BLOCO DE DOWNLOAD ---
+        st.markdown("### 📥 Baixar Dados Visualizados")
+        down_cols = st.columns(len(dfs))
+        for i, (df, label) in enumerate(zip(dfs, labels)):
+            csv_data = convert_df(df)
+            with down_cols[i]:
+                st.download_button(
+                    label=f"Baixar {label}",
+                    data=csv_data,
+                    file_name=f"ocean_data_{label}.csv",
+                    mime="text/csv",
+                    key=f"dl_{label}_{i}"
+                )
+        # ------------------------------
+
     else:
         st.warning("Nenhum dado encontrado no período selecionado.")
+        # ======================
+    # 5) DOWNLOAD DOS DADOS
+    # ======================
+    st.markdown("### 📥 Baixar Dados Selecionados")
+    
+    # Criamos colunas para organizar os botões lateralmente
+    if dfs:
+        down_cols = st.columns(len(dfs))
+        for i, (df, label) in enumerate(zip(dfs, labels)):
+            csv_data = convert_df(df)
+            with down_cols[i]:
+                st.download_button(
+                    label=f"CSV: {label}",
+                    data=csv_data,
+                    file_name=f"{label}_{record_id}_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv",
+                    key=f"btn_download_{label}_{i}"
+                )
+    else:
+        st.info("Não há dados disponíveis para download.")
