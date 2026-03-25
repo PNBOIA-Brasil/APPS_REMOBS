@@ -453,71 +453,84 @@ def plot_track_map(df_track, title, kml_features=None):
     )
 
     st.plotly_chart(fig, use_container_width=True)
-
 def plot_series_multi(dfs, time_cols, var_lists, labels, mode):
-
-    n_rows = sum(len(v) for v in var_lists) if mode == "Gráficos separados" else 1
+    # Calcula o número de subplots
+    if mode == "Gráficos separados":
+        n_rows = sum(len(v) for v in var_lists)
+        shared_x = True
+    else:
+        n_rows = 1
+        shared_x = False
 
     fig = make_subplots(
         rows=n_rows,
         cols=1,
-        shared_xaxes=True,
-        vertical_spacing=0.02  # espaço mínimo entre gráficos
+        shared_xaxes=shared_x,
+        vertical_spacing=0.02
     )
 
-    row = 1
+    current_row = 1
     annotations = []
 
     for df, tcol, vars_, label in zip(dfs, time_cols, var_lists, labels):
-
         for v in vars_:
-
+            # Se for "Mesmo gráfico", queremos legenda. Se for "Separados", usamos anotação.
+            show_lgd = True if mode == "Mesmo gráfico" else False
+            
             fig.add_trace(
                 go.Scatter(
                     x=df[tcol],
                     y=df[v],
                     mode="lines+markers",
+                    name=f"{label} | {v}", # 👈 Nome que aparece na legenda
                     marker=dict(size=2),
-                    showlegend=False
+                    showlegend=show_lgd
                 ),
-                row=row if mode == "Gráficos separados" else 1,
+                row=current_row if mode == "Gráficos separados" else 1,
                 col=1,
             )
 
-            # 👇 título ENTRE os gráficos
-            annotations.append(
-                dict(
-                    text=f"{label} · {v}",
-                    x=0.01,
-                    xref="paper",
-                    y=1 - (row - 0.5) / n_rows,
-                    yref="paper",
-                    showarrow=False,
-                    font=dict(size=11),
-                    align="left"
-                )
-            )
-
             if mode == "Gráficos separados":
-                row += 1
+                # Título discreto acima de cada mini-gráfico
+                annotations.append(
+                    dict(
+                        text=f"<b>{label}</b>: {v}",
+                        x=0.01,
+                        xref="paper",
+                        y=1 - (current_row - 0.8) / n_rows, # Ajuste fino da posição vertical
+                        yref="paper",
+                        showarrow=False,
+                        font=dict(size=10),
+                        align="left",
+                        bgcolor="rgba(255,255,255,0.7)"
+                    )
+                )
+                current_row += 1
 
-    altura_por_linha = 120
-
+    # Ajuste de Layout
+    altura_por_linha = 120 if mode == "Gráficos separados" else 500
+    
     fig.update_layout(
-        height=altura_por_linha * n_rows,
-        plot_bgcolor="rgba(245,245,245,0.9)",
-        margin=dict(l=40, r=5, t=10, b=25),
-        showlegend=False,
-        annotations=annotations
+        height=altura_por_linha * (n_rows if mode == "Gráficos separados" else 1),
+        template="plotly_white",
+        margin=dict(l=40, r=20, t=30, b=30),
+        legend=dict(
+            orientation="h",       # Legenda horizontal
+            yanchor="bottom",
+            y=1.02,                # Posiciona acima do gráfico
+            xanchor="right",
+            x=1,
+            font=dict(size=10)
+        ) if mode == "Mesmo gráfico" else None,
+        annotations=annotations if mode == "Gráficos separados" else []
     )
 
-    # remove eixo X repetido
     if mode == "Gráficos separados":
+        # Remove labels do eixo X de todos exceto o último
         for i in range(1, n_rows):
             fig.update_xaxes(showticklabels=False, row=i, col=1)
 
     return fig
-
 
 
 # ======================
