@@ -560,35 +560,43 @@ with st.sidebar:
     table_vars = {}
     table_specific_ids = {} # 👈 Dicionário para guardar o ID de cada tabela
     table_specific_ids[primary_table] = record_id
-
     for t in selected_additional:
-        st.markdown(f"**Config: {t}**")
+        st.markdown(f"---")
+        st.subheader(f"📦 Config: {t}")
         info = TABLES[t]
         
-        # --- NOVO: Seleção de ID para a tabela adicional ---
-        # Se a coluna de ID for buoy_id, tentamos pegar a lista bonita (ID - Nome)
-        if info["id_col"] == "buoy_id":
-            opt_t, ids_t = get_buoy_options()
-            sel_t = st.selectbox(f"ID para {t}", opt_t, key=f"id_{t}")
-            table_specific_ids[t] = ids_t[opt_t.index(sel_t)]
-        else:
-            ids_t = get_ids_only(info["schema"], info["table"], info["id_col"])
-            table_specific_ids[t] = st.selectbox(f"ID para {t} ({info['id_col']})", ids_t, key=f"id_{t}")
-        
-        # --- Seleção de Variáveis ---
-        cols_t = get_table_columns(info["schema"], info["table"])
-        ignore = {info["time"], info["id_col"], "geom"}
-        selectable = [c for c in cols_t if c not in ignore]
-        default_vars = DEFAULT_VARS.get(t, selectable[:2])
-        
-        table_vars[t] = st.multiselect(
-            f"Variáveis de {t}",
-            selectable,
-            default=[v for v in default_vars if v in selectable],
-            key=f"vars_{t}"
-        )
-        st.divider()
+        # --- Seleção de ID para a tabela adicional ---
+        # Só tentamos o 'get_buoy_options' se a coluna for exatamente 'buoy_id'
+        # e a tabela for do schema 'moored', para evitar erros de relação.
+        try:
+            if info["id_col"] == "buoy_id" and info["schema"] == "moored":
+                opt_t, ids_t = get_buoy_options()
+                # Usamos um 'key' único para não dar conflito no Streamlit
+                sel_t = st.selectbox(f"Selecione o Registro para {t}", opt_t, key=f"id_sel_{t}")
+                table_specific_ids[t] = ids_t[opt_t.index(sel_t)]
+            else:
+                # Se for Sailbuoy ou outra, pega os IDs únicos direto da tabela
+                ids_t = get_ids_only(info["schema"], info["table"], info["id_col"])
+                table_specific_ids[t] = st.selectbox(f"ID para {t} ({info['id_col']})", ids_t, key=f"id_raw_{t}")
+        except Exception as e:
+            st.error(f"Erro ao buscar IDs para {t}: {e}")
+            table_specific_ids[t] = None
 
+        # --- Seleção de Variáveis ---
+        try:
+            cols_t = get_table_columns(info["schema"], info["table"])
+            ignore = {info["time"], info["id_col"], "geom"}
+            selectable = [c for c in cols_t if c not in ignore]
+            default_vars = DEFAULT_VARS.get(t, selectable[:2])
+            
+            table_vars[t] = st.multiselect(
+                f"Variáveis de {t}",
+                selectable,
+                default=[v for v in default_vars if v in selectable],
+                key=f"vars_{t}"
+            )
+        except Exception as e:
+            st.error(f"Erro ao buscar colunas de {t}: {e}")
     # Variáveis da tabela principal (sempre visíveis)
     p_vars_selectable = [c for c in get_table_columns(pinfo["schema"], pinfo["table"]) if c not in {pinfo["time"], pinfo["id_col"], "geom"}]
     p_default = DEFAULT_VARS.get(primary_table, p_vars_selectable[:2])
