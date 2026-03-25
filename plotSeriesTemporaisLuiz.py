@@ -528,25 +528,28 @@ st.title("🌊 Ocean Multi-Table Explorer")
 with st.sidebar:
     st.header("🔎 Fonte de dados")
 
-    primary_table = st.selectbox("Tabela principal", list(TABLES.keys()),index=8)
+    primary_table = st.selectbox("Tabela principal", list(TABLES.keys()), index=8)
     pinfo = TABLES[primary_table]
     cols = get_table_columns(pinfo["schema"], pinfo["table"])
 
     if "name" in cols:
         options, ids = get_buoy_options()
-        sel = st.selectbox("Registro (ID – Nome)", options)
+        sel = st.selectbox("Registro Principal (ID – Nome)", options)
         record_id = ids[options.index(sel)]
     else:
         ids = get_ids_only(pinfo["schema"], pinfo["table"], pinfo["id_col"])
-        record_id = st.selectbox(pinfo["id_col"], ids)
+        record_id = st.selectbox(f"ID Principal ({pinfo['id_col']})", ids)
 
-    selected_tables = st.multiselect(
+    selected_additional = st.multiselect(
         "Tabelas adicionais",
         [t for t in TABLES if t != primary_table]
     )
-    selected_tables = [primary_table] + selected_tables
+    
+    # Lista final de processamento
+    all_selected_tables = [primary_table] + selected_additional
 
-    st.header("📊 Variáveis")
+    st.header("📊 Configuração por Tabela")
+    
     DEFAULT_VARS = {
         "bmobr_general": ["vento_vel", "vento_dir"],
         "spotter_general": ["hs", "tp"],
@@ -555,20 +558,45 @@ with st.sidebar:
     }
 
     table_vars = {}
-    for t in selected_tables:
+    table_specific_ids = {} # 👈 Dicionário para guardar o ID de cada tabela
+    table_specific_ids[primary_table] = record_id
+
+    for t in selected_additional:
+        st.markdown(f"**Config: {t}**")
         info = TABLES[t]
+        
+        # --- NOVO: Seleção de ID para a tabela adicional ---
+        # Se a coluna de ID for buoy_id, tentamos pegar a lista bonita (ID - Nome)
+        if info["id_col"] == "buoy_id":
+            opt_t, ids_t = get_buoy_options()
+            sel_t = st.selectbox(f"ID para {t}", opt_t, key=f"id_{t}")
+            table_specific_ids[t] = ids_t[opt_t.index(sel_t)]
+        else:
+            ids_t = get_ids_only(info["schema"], info["table"], info["id_col"])
+            table_specific_ids[t] = st.selectbox(f"ID para {t} ({info['id_col']})", ids_t, key=f"id_{t}")
+        
+        # --- Seleção de Variáveis ---
         cols_t = get_table_columns(info["schema"], info["table"])
         ignore = {info["time"], info["id_col"], "geom"}
         selectable = [c for c in cols_t if c not in ignore]
-        # table_vars[t] = st.multiselect(t, selectable, default=selectable[:2])
-                
         default_vars = DEFAULT_VARS.get(t, selectable[:2])
         
         table_vars[t] = st.multiselect(
-            t,
+            f"Variáveis de {t}",
             selectable,
-            default=[v for v in default_vars if v in selectable]
+            default=[v for v in default_vars if v in selectable],
+            key=f"vars_{t}"
         )
+        st.divider()
+
+    # Variáveis da tabela principal (sempre visíveis)
+    p_vars_selectable = [c for c in get_table_columns(pinfo["schema"], pinfo["table"]) if c not in {pinfo["time"], pinfo["id_col"], "geom"}]
+    p_default = DEFAULT_VARS.get(primary_table, p_vars_selectable[:2])
+    table_vars[primary_table] = st.multiselect(
+        f"Variáveis da Principal ({primary_table})", 
+        p_vars_selectable, 
+        default=[v for v in p_default if v in p_vars_selectable]
+    )
 
     dias = st.number_input("Mostrar últimos N dias", min_value=1, max_value=600, value=3, step=1)
     st.header("🗺️ Overlay KML/KMZ")
@@ -592,25 +620,15 @@ with st.sidebar:
 # EXECUÇÃO
 # ======================
 if carregar:
-
     dfs, time_cols, var_lists, labels = [], [], [], []
-
-    # ======================
-    # 1) Janela de tempo (tmin/tmax) baseada na TABELA PRINCIPAL
-    # ======================
-    pinfo = TABLES[primary_table]
-
-    tmax_global = get_last_timestamp(
-        pinfo["schema"], pinfo["table"],
-        pinfo["time"], pinfo["id_col"],
-        record_id,
-    )
-
+    
+    # 1) Janela de tempo baseada na PRINCIPAL
+    tmax_global = get_last_timestamp(pinfo["schema"], pinfo["table"], pinfo["time"], pinfo["id_col"], record_id)
     if tmax_global is None:
-        st.warning("Não encontrei timestamp (tmax) para a tabela principal / ID selecionado.")
+        st.warning("Não encontrei dados para a tabela principal.")
         st.stop()
-
     tmin_global = tmax_global - pd.Timedelta(days=int(dias))
+
 
     # ======================
     # 2) MAPA (somente se a tabela principal tiver lat/lon) - usa a MESMA janela
@@ -638,14 +656,15 @@ if carregar:
     # ======================
     # 3) BUSCA DADOS (todas as tabelas selecionadas) - MESMA janela
     # ======================
-    for t in selected_tables:
+    for t in all_selected_tables:
         info = TABLES[t]
         vars_ = table_vars.get(t, [])
-        if not vars_:
+        t_id = table_specific_ids.get(t) # 👈 USA O ID SELECIONADO PARA ESTA TABELA
+        
+        if not vars_ or not t_id:
             continue
 
         cols_sel = [info["time"]] + vars_
-
         q = (
             f"SELECT {', '.join(cols_sel)} "
             f"FROM {info['schema']}.{info['table']} "
@@ -655,8 +674,8 @@ if carregar:
             f"ORDER BY {info['time']}"
         )
 
-        params = [record_id, tmin_global, tmax_global]
-        df = run_query(q, params)
+        df = run_query(q, [t_id, tmin_global, tmax_global])
+
 
         if df.empty:
             continue
