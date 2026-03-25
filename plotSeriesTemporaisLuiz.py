@@ -46,6 +46,10 @@ TABLES = {
 # ======================
 # BANCO
 # ======================
+@st.cache_data
+def convert_df(df):
+    # Importante: index=False para não sujar o CSV com o índice do pandas
+    return df.to_csv(index=False).encode('utf-8')
 @st.cache_data(show_spinner=False)
 def run_query(query, params=None):
     conn = psycopg2.connect(
