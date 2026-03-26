@@ -112,6 +112,42 @@ def compute_salinidade(df, temp_col="cttemp", cond_col="ctcond"):
     df = df.copy()
     df["Salinidade (PSU)"] = gsw.SP_from_C(df[cond_col], df[temp_col], 0)
     return df
+from scipy import stats
+
+def calculate_regression(dfs, var_lists):
+    # Consolida todas as variáveis selecionadas em um único DF para alinhar o tempo
+    # Só faz sentido se houver exatamente 2 variáveis no total entre todas as tabelas
+    all_vars = []
+    for df, vars_ in zip(dfs, var_lists):
+        for v in vars_:
+            # Mantém apenas tempo e a variável, renomeando para evitar conflito se nomes forem iguais
+            temp_df = df[[df.columns[0], v]].copy() 
+            temp_df.columns = ['time', f"{v}"]
+            all_vars.append(temp_df)
+
+    if len(all_vars) != 2:
+        return None
+
+    # Merge dos dois DFs pelo tempo para garantir que X e Y coincidam
+    merged = pd.merge(all_vars[0], all_vars[1], on='time').dropna()
+
+    if len(merged) < 2:
+        return "Dados insuficientes para correlação (poucos pontos coincidentes)."
+
+    x = merged.iloc[:, 1]
+    y = merged.iloc[:, 2]
+    
+    slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
+    
+    return {
+        "x_label": merged.columns[1],
+        "y_label": merged.columns[2],
+        "r2": r_value**2,
+        "slope": slope,
+        "intercept": intercept,
+        "p_value": p_value,
+        "n": len(merged)
+    }
 def daily_stats_panel(df, time_col, vars_, label, tz="America/Sao_Paulo"):
     """
     Painel UX por variável:
