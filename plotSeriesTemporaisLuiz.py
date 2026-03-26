@@ -770,9 +770,33 @@ if carregar:
                 daily_stats_panel(df, tcol, vars_, label)
 
         st.markdown("---")
-
+# ... (seu código anterior: plot_series_multi e plotly_chart)
         fig = plot_series_multi(dfs, time_cols, var_lists, labels, mode)
         st.plotly_chart(fig, use_container_width=True)
+
+        # --- NOVO: ESTATÍSTICA PARA 2 VARIÁVEIS ---
+        total_vars_count = sum(len(v) for v in var_lists)
+        
+        if total_vars_count == 2:
+            st.markdown("---")
+            with st.expander("📈 Análise de Correlação (Estatística)", expanded=True):
+                reg = calculate_regression(dfs, var_lists)
+                
+                if isinstance(reg, dict):
+                    c1, c2, c3 = st.columns(3)
+                    c1.metric("R² (Coef. Determinação)", f"{reg['r2']:.4f}")
+                    c2.metric("Inclinação (Slope)", f"{reg['slope']:.4f}")
+                    c3.metric("Amostras (N)", reg['n'])
+                    
+                    st.write(f"**Equação:** $y = {reg['slope']:.4f} \cdot x + ({reg['intercept']:.4f})$")
+                    st.caption(f"X: {reg['x_label']} | Y: {reg['y_label']}")
+                    
+                    if reg['p_value'] < 0.05:
+                        st.success("✅ A correlação é estatisticamente significativa (p < 0.05).")
+                    else:
+                        st.warning("⚠️ A correlação não é estatisticamente significativa (p > 0.05).")
+                else:
+                    st.info(reg)
 
         # --- NOVO BLOCO DE DOWNLOAD ---
         st.markdown("### 📥 Baixar Dados Visualizados")
