@@ -741,7 +741,12 @@ if carregar:
             tmin_global, tmax_global
         )
         # plot_track_map(df_track, title=f"{primary_table} · {record_id} · últimos {int(dias)} dias")
-        plot_track_map(df_track, title=f"{primary_table} · {record_id} · últimos {int(dias)} dias", kml_features=kml_features)
+        #plot_track_map(df_track, title=f"{primary_table} · {record_id} · últimos {int(dias)} dias", kml_features=kml_features)
+        plot_track_map(
+            df_track, 
+            title=f"{primary_table} · {record_id} | {start_date} até {end_date}", 
+            kml_features=kml_features
+              )
     else:
         st.info("Tabela principal não tem colunas reconhecidas de latitude/longitude (lat/lon).")
 
