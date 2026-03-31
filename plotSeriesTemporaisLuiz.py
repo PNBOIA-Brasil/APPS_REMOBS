@@ -665,7 +665,7 @@ with st.sidebar:
         default=[v for v in p_default if v in p_vars_selectable]
     )
 
-    dias = st.number_input("Mostrar últimos N dias", min_value=1, max_value=600, value=3, step=1)
+    dias = st.number_input("Mostrar últimos N dias", min_value=1, max_value=2600, value=3, step=1)
     st.header("🗺️ Overlay KML/KMZ")
     kml_file = st.file_uploader("Envie KML ou KMZ", type=["kml", "kmz"])
     kml_features = []
