@@ -665,7 +665,17 @@ with st.sidebar:
         default=[v for v in p_default if v in p_vars_selectable]
     )
 
-    dias = st.number_input("Mostrar últimos N dias", min_value=1, max_value=2600, value=3, step=1)
+    #dias = st.number_input("Mostrar últimos N dias", min_value=1, max_value=2600, value=3, step=1)
+    st.header("📅 Período de Análise")
+    hoje = pd.Timestamp.now().date()
+    set_dias_atras = hoje - pd.Timedelta(days=7)
+
+    # O date_input com uma lista/tupla de dois valores habilita o modo "range"
+    data_range = st.date_input(
+        "Selecione o intervalo",
+        value=(set_dias_atras, hoje),
+        max_value=hoje
+    )        
     st.header("🗺️ Overlay KML/KMZ")
     kml_file = st.file_uploader("Envie KML ou KMZ", type=["kml", "kmz"])
     kml_features = []
@@ -687,14 +697,31 @@ with st.sidebar:
 # EXECUÇÃO
 # ======================
 if carregar:
+    # Verifica se o range foi selecionado corretamente (start e end)
+    if len(data_range) != 2:
+        st.error("Por favor, selecione a data de início e de fim no calendário.")
+        st.stop()
+        
+    start_date, end_date = data_range
+    
+    # 1) Definir tmin e tmax baseados no input
+    # Convertendo para datetime para manter compatibilidade com as queries de timestamp
+    tmin_global = pd.to_datetime(start_date)
+    tmax_global = pd.to_datetime(end_date).replace(hour=23, minute=59, second=59)
+
     dfs, time_cols, var_lists, labels = [], [], [], []
     
-    # 1) Janela de tempo baseada na PRINCIPAL
-    tmax_global = get_last_timestamp(pinfo["schema"], pinfo["table"], pinfo["time"], pinfo["id_col"], record_id)
-    if tmax_global is None:
+    # Opcional: Se você quiser que o tmax_global ainda seja o 
+    # último dado do banco mas limitado pela data final do calendário:
+    last_db_ts = get_last_timestamp(pinfo["schema"], pinfo["table"], pinfo["time"], pinfo["id_col"], record_id)
+    
+    if last_db_ts is None:
         st.warning("Não encontrei dados para a tabela principal.")
         st.stop()
-    tmin_global = tmax_global - pd.Timedelta(days=int(dias))
+        
+    # Se quiser forçar que a busca não passe do último dado real:
+    if tmax_global > last_db_ts:
+        tmax_global = last_db_ts
 
 
     # ======================
