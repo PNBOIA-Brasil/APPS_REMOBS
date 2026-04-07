@@ -260,8 +260,8 @@ def find_lat_lon_columns(cols):
     # tenta achar nomes comuns
     lower_map = {c.lower(): c for c in cols}
 
-    lat_candidates = ["latitude", "lat", "y", "nav_lat"]
-    lon_candidates = ["longitude", "lon", "long", "x", "nav_lon"]
+    lat_candidates = ["latitude", "lat", "y", "nav_lat","ap_lat"]
+    lon_candidates = ["longitude", "lon", "long", "x", "nav_lon","ap_long"]
 
     lat_col = next((lower_map[c] for c in lat_candidates if c in lower_map), None)
     lon_col = next((lower_map[c] for c in lon_candidates if c in lower_map), None)
